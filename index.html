@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InboxIQ — Smart Mail Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<style>
+/* ── Reset & Root ───────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:         #0c0c0e;
+  --surface:    #131316;
+  --surface2:   #1a1a1f;
+  --surface3:   #222228;
+  --border:     rgba(255,255,255,0.07);
+  --border2:    rgba(255,255,255,0.12);
+
+  --inbox:      #2ecc71;
+  --inbox-dim:  rgba(46,204,113,0.12);
+  --spam:       #e74c3c;
+  --spam-dim:   rgba(231,76,60,0.12);
+  --iq:         #9b59b6;
+  --iq-dim:     rgba(155,89,182,0.12);
+  --iq-glow:    rgba(155,89,182,0.25);
+
+  --text:       #f0f0f4;
+  --text-2:     #9090a0;
+  --text-3:     #50505a;
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-serif:   'Instrument Serif', serif;
+  --font-mono:    'DM Mono', monospace;
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family: var(--font-mono);
+  background:  var(--bg);
+  color:       var(--text);
+  min-height:  100vh;
+  overflow-x:  hidden;
+  cursor:      crosshair;
+}
+
+/* ── Noise Texture ──────────────────────────────────────────────────────── */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:9999;
+}
+
+/* ── Grid Background ────────────────────────────────────────────────────── */
+.bg-grid{
+  position:fixed;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(155,89,182,0.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(155,89,182,0.035) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,black 30%,transparent 100%);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.app{
+  max-width:860px;
+  margin:0 auto;
+  padding:0 24px 80px;
+  position:relative;z-index:1;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+header{
+  padding:56px 0 48px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:12px;
+}
+.logo{
+  font-family:var(--font-display);
+  font-size:clamp(3.5rem,9vw,6.5rem);
+  line-height:.92;
+  letter-spacing:0.02em;
+  color:var(--text);
+  position:relative;
+}
+.logo em{
+  font-style:normal;
+  color:transparent;
+  -webkit-text-stroke:1px var(--iq);
+  text-shadow:0 0 40px var(--iq-glow);
+}
+.logo-sub{
+  font-family:var(--font-serif);
+  font-style:italic;
+  font-size:1.05rem;
+  color:var(--text-2);
+  letter-spacing:0.01em;
+  padding-left:2px;
+}
+
+.status-bar{
+  display:flex;align-items:center;gap:8px;
+  font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--text-3);margin-top:4px;
+}
+.status-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--inbox);
+  animation:blink 2.5s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ── Section Labels ─────────────────────────────────────────────────────── */
+.section-label{
+  font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.section-label::before{content:'//  '}
+
+/* ── Preference Grid ────────────────────────────────────────────────────── */
+.pref-section{margin-bottom:32px}
+
+.pref-grid{
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+
+.pref-tag{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;
+  border:1px solid var(--border);
+  border-radius:3px;
+  background:var(--surface);
+  font-family:var(--font-mono);
+  font-size:0.72rem;
+  color:var(--text-2);
+  cursor:crosshair;
+  transition:all 0.18s ease;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.pref-tag:hover{
+  border-color:rgba(155,89,182,0.4);
+  color:var(--text);
+  background:var(--surface2);
+}
+.pref-tag.active{
+  background:var(--iq-dim);
+  border-color:rgba(155,89,182,0.6);
+  color:#c39bd3;
+  box-shadow:0 0 12px rgba(155,89,182,0.1);
+}
+.pref-tag .tag-icon{font-size:0.9rem;line-height:1}
+
+.pref-hint{
+  margin-top:10px;
+  font-size:0.62rem;letter-spacing:0.08em;
+  color:var(--text-3);
+}
+.pref-hint span{color:var(--iq);opacity:0.7}
+
+/* ── Email Input ────────────────────────────────────────────────────────── */
+.input-section{margin-bottom:20px}
+
+.email-wrap{
+  position:relative;
+  border:1px solid var(--border2);
+  border-radius:6px;
+  background:var(--surface);
+  transition:border-color 0.2s;
+  overflow:hidden;
+}
+.email-wrap:focus-within{
+  border-color:rgba(155,89,182,0.5);
+  box-shadow:0 0 0 3px rgba(155,89,182,0.06),0 0 30px rgba(155,89,182,0.05);
+}
+
+.email-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface2);
+}
+.toolbar-label{
+  font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--text-3);
+}
+.char-count{
+  font-size:0.62rem;color:var(--text-3);
+  transition:color 0.2s;
+}
+.char-count.warn{color:#e67e22}
+
+textarea#emailInput{
+  width:100%;min-height:200px;
+  padding:16px;
+  background:transparent;
+  border:none;outline:none;resize:vertical;
+  font-family:var(--font-mono);
+  font-size:0.82rem;line-height:1.75;
+  color:var(--text);
+  caret-color:var(--iq);
+  cursor:text;
+}
+textarea#emailInput::placeholder{color:var(--text-3);font-style:italic}
+
+/* ── Classify Button ────────────────────────────────────────────────────── */
+.classify-btn{
+  width:100%;
+  padding:16px;
+  background:linear-gradient(135deg,#7d3c98,#9b59b6);
+  border:none;border-radius:6px;
+  font-family:var(--font-display);
+  font-size:1.5rem;
+  letter-spacing:0.12em;
+  color:#fff;
+  cursor:crosshair;
+  position:relative;overflow:hidden;
+  transition:transform 0.15s,box-shadow 0.2s;
+  box-shadow:0 0 25px rgba(155,89,182,0.2);
+}
+.classify-btn::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);
+  opacity:0;transition:opacity 0.2s;
+}
+.classify-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 35px rgba(155,89,182,0.4);
+}
+.classify-btn:hover::before{opacity:1}
+.classify-btn:active{transform:translateY(0)}
+.classify-btn:disabled{
+  opacity:0.45;cursor:not-allowed;transform:none;
+  box-shadow:none;
+}
+
+.btn-inner{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn-spinner{
+  width:18px;height:18px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.classify-btn.loading .btn-spinner{display:block}
+.classify-btn.loading .btn-text{opacity:0.5}
+
+/* ── Result Panel ───────────────────────────────────────────────────────── */
+.result-panel{
+  margin-top:28px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--surface);
+  overflow:hidden;
+  opacity:0;transform:translateY(16px);
+  transition:opacity 0.4s ease,transform 0.4s ease;
+  pointer-events:none;
+}
+.result-panel.visible{
+  opacity:1;transform:translateY(0);
+  pointer-events:all;
+}
+
+/* ── Result Header ──────────────────────────────────────────────────────── */
+.result-header{
+  padding:20px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.result-header::before{
+  content:'';
+  position:absolute;inset:0;opacity:0.06;
+  transition:background 0.4s;
+}
+.result-panel[data-result="HAM"]     .result-header::before{background:var(--inbox)}
+.result-panel[data-result="SPAM"]    .result-header::before{background:var(--spam)}
+.result-panel[data-result="INBOXIQ"] .result-header::before{background:var(--iq)}
+
+.result-left{display:flex;align-items:center;gap:16px}
+.result-icon{
+  font-size:2.2rem;line-height:1;
+  filter:drop-shadow(0 0 8px currentColor);
+}
+.result-verdict{
+  font-family:var(--font-display);
+  font-size:2rem;letter-spacing:0.06em;
+  line-height:1;
+}
+.result-panel[data-result="HAM"]     .result-verdict{color:var(--inbox)}
+.result-panel[data-result="SPAM"]    .result-verdict{color:var(--spam)}
+.result-panel[data-result="INBOXIQ"] .result-verdict{color:#c39bd3}
+
+.result-sub{
+  font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-3);margin-top:3px;
+}
+
+.confidence-badge{
+  display:flex;flex-direction:column;align-items:flex-end;gap:3px;
+}
+.conf-label{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3)}
+.conf-value{
+  font-family:var(--font-display);font-size:1.8rem;letter-spacing:0.04em;
+}
+.result-panel[data-result="HAM"]     .conf-value{color:var(--inbox)}
+.result-panel[data-result="SPAM"]    .conf-value{color:var(--spam)}
+.result-panel[data-result="INBOXIQ"] .conf-value{color:#c39bd3}
+
+/* ── Result Body ────────────────────────────────────────────────────────── */
+.result-body{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+
+.meta-row{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;
+}
+.meta-card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:12px 14px;
+}
+.meta-card-label{
+  font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:5px;
+}
+.meta-card-value{
+  font-size:0.82rem;color:var(--text);font-weight:500;
+}
+
+/* ── Folder Destination ─────────────────────────────────────────────────── */
+.folder-dest{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 18px;
+  border-radius:5px;
+  border:1px solid;
+}
+.result-panel[data-result="HAM"]     .folder-dest{border-color:rgba(46,204,113,0.3);background:var(--inbox-dim)}
+.result-panel[data-result="SPAM"]    .folder-dest{border-color:rgba(231,76,60,0.3);background:var(--spam-dim)}
+.result-panel[data-result="INBOXIQ"] .folder-dest{border-color:rgba(155,89,182,0.3);background:var(--iq-dim)}
+
+.folder-icon{font-size:1.5rem}
+.folder-text{}
+.folder-name{
+  font-family:var(--font-display);font-size:1.1rem;letter-spacing:0.08em;
+}
+.result-panel[data-result="HAM"]     .folder-name{color:var(--inbox)}
+.result-panel[data-result="SPAM"]    .folder-name{color:var(--spam)}
+.result-panel[data-result="INBOXIQ"] .folder-name{color:#c39bd3}
+
+.folder-reason{font-size:0.72rem;color:var(--text-2);margin-top:2px;line-height:1.5}
+
+/* ── Preference Score Bars ──────────────────────────────────────────────── */
+.pref-scores{display:flex;flex-direction:column;gap:8px}
+.pref-score-label{
+  font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-3);margin-bottom:4px;
+}
+.score-row{display:flex;align-items:center;gap:10px}
+.score-name{
+  font-size:0.7rem;color:var(--text-2);
+  width:190px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.score-bar-track{
+  flex:1;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;
+}
+.score-bar-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,#7d3c98,#c39bd3);
+  transition:width 0.8s cubic-bezier(0.34,1.56,0.64,1);
+  width:0%;
+}
+.score-bar-fill.rescued-fill{background:linear-gradient(90deg,#2ecc71,#a8e6cf)}
+.score-val{
+  font-size:0.68rem;color:var(--text-3);width:40px;text-align:right;flex-shrink:0;
+}
+.rescued-tag{
+  font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;
+  background:rgba(46,204,113,0.15);color:#2ecc71;
+  border:1px solid rgba(46,204,113,0.25);
+  border-radius:2px;padding:1px 5px;flex-shrink:0;
+}
+
+/* ── Three Folder Display ───────────────────────────────────────────────── */
+.folders-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;
+  margin-top:28px;
+}
+.folder-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:16px;
+  text-align:center;
+  position:relative;overflow:hidden;
+  transition:border-color 0.3s,box-shadow 0.3s;
+}
+.folder-card::after{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  opacity:0;transition:opacity 0.3s;
+}
+.folder-card.inbox-card::after{background:var(--inbox)}
+.folder-card.spam-card::after{background:var(--spam)}
+.folder-card.iq-card::after{background:var(--iq)}
+
+.folder-card.active-folder{
+  border-color:rgba(255,255,255,0.15);
+}
+.folder-card.active-folder.inbox-card{
+  border-color:rgba(46,204,113,0.3);
+  box-shadow:0 0 20px rgba(46,204,113,0.05);
+}
+.folder-card.active-folder.spam-card{
+  border-color:rgba(231,76,60,0.3);
+  box-shadow:0 0 20px rgba(231,76,60,0.05);
+}
+.folder-card.active-folder.iq-card{
+  border-color:rgba(155,89,182,0.5);
+  box-shadow:0 0 20px rgba(155,89,182,0.1);
+}
+.folder-card.active-folder::after{opacity:1}
+
+.folder-card-icon{font-size:1.6rem;margin-bottom:6px;display:block}
+.folder-card-name{
+  font-family:var(--font-display);font-size:1rem;letter-spacing:0.08em;
+}
+.inbox-card .folder-card-name{color:var(--inbox)}
+.spam-card  .folder-card-name{color:var(--spam)}
+.iq-card    .folder-card-name{color:#c39bd3}
+
+.folder-card-desc{
+  font-size:0.62rem;color:var(--text-3);margin-top:4px;line-height:1.5;
+}
+.folder-mail-preview{
+  margin-top:10px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:8px 10px;
+  font-size:0.62rem;color:var(--text-2);
+  text-align:left;line-height:1.6;
+  display:none;
+  animation:fadeIn 0.4s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.folder-card.active-folder .folder-mail-preview{display:block}
+.mail-preview-from{color:var(--text-3)}
+.mail-preview-subject{color:var(--text);font-weight:500;margin:2px 0}
+.mail-preview-snip{color:var(--text-3);font-style:italic}
+
+/* ── Error State ────────────────────────────────────────────────────────── */
+.error-msg{
+  margin-top:16px;
+  padding:12px 16px;
+  background:rgba(231,76,60,0.08);
+  border:1px solid rgba(231,76,60,0.25);
+  border-radius:5px;
+  font-size:0.75rem;color:#e74c3c;
+  display:none;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+footer{
+  margin-top:64px;padding-top:20px;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.footer-logo{
+  font-family:var(--font-display);font-size:1.1rem;letter-spacing:0.06em;
+}
+.footer-logo span{color:var(--iq);-webkit-text-stroke:0.5px var(--iq)}
+footer p{font-size:0.62rem;color:var(--text-3)}
+
+/* ── Divider ────────────────────────────────────────────────────────────── */
+.divider{
+  height:1px;background:var(--border);margin:28px 0;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media(max-width:600px){
+  .app{padding:0 16px 60px}
+  header{padding:36px 0 32px}
+  .folders-row{grid-template-columns:1fr;gap:8px}
+  .meta-row{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<div class="app">
+
+  <!-- ── HEADER ────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">Inbox<em>IQ</em></div>
+    <div class="logo-sub">Personalized spam intelligence — rescue what matters.</div>
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting to backend…</span>
+    </div>
+  </header>
+
+
+  <div style="margin:24px 0 20px;padding:16px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);">
+    <div class="section-label">Gmail Connection</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button id="gmailConnectBtn" class="classify-btn" style="width:auto;padding:10px 18px;font-size:1rem;" onclick="connectGmail()">CONNECT GMAIL</button>
+      <button id="gmailProcessBtn" class="classify-btn" style="width:auto;padding:10px 18px;font-size:1rem;display:none;" onclick="processGmailNow()">PROCESS NEW MAIL</button>
+      <span id="gmailStatus" style="font-size:.68rem;color:var(--text-3);">Gmail not connected</span>
+    </div>
+    <div style="margin-top:8px;font-size:.62rem;color:var(--text-3);line-height:1.5;">
+      Connect your Gmail account and InboxIQ will automatically classify new Inbox messages.
+      Matching spam is rescued to <b>InboxIQ</b>; other detected spam goes to <b>InboxIQ/Spam</b>.
+    </div>
+  </div>
+
+  <!-- ── PREFERENCES ───────────────────────────────────────────────────── -->
+  <div class="pref-section">
+    <div class="section-label">Your Interests</div>
+    <div class="pref-grid" id="prefGrid">
+      <!-- populated by JS -->
+    </div>
+    <div class="pref-hint">
+      Select categories — InboxIQ will rescue spam that matches your taste.
+      <span id="selectedCount">0 selected</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── EMAIL INPUT ───────────────────────────────────────────────────── -->
+  <div class="input-section">
+    <div class="section-label">Paste Email</div>
+    <div class="email-wrap">
+      <div class="email-toolbar">
+        <span class="toolbar-label">Email Content</span>
+        <span class="char-count" id="charCount">0 chars</span>
+      </div>
+      <textarea
+        id="emailInput"
+        placeholder="Paste the full email here — subject line, body, sender, anything…&#10;&#10;Example:&#10;From: offers@nike.com&#10;Subject: Flash Sale — 40% OFF Nike Training Shoes Today Only!&#10;&#10;Hi, don't miss our biggest sale of the year…"
+      ></textarea>
+    </div>
+  </div>
+
+  <!-- ── CLASSIFY BUTTON ───────────────────────────────────────────────── -->
+  <button class="classify-btn" id="classifyBtn" onclick="classifyEmail()">
+    <div class="btn-inner">
+      <div class="btn-spinner" id="btnSpinner"></div>
+      <span class="btn-text" id="btnText">CLASSIFY EMAIL</span>
+    </div>
+  </button>
+
+  <!-- ── ERROR ─────────────────────────────────────────────────────────── -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- ── RESULT PANEL ──────────────────────────────────────────────────── -->
+  <div class="result-panel" id="resultPanel">
+
+    <!-- Header -->
+    <div class="result-header">
+      <div class="result-left">
+        <div class="result-icon" id="resultIcon"></div>
+        <div>
+          <div class="result-verdict" id="resultVerdict"></div>
+          <div class="result-sub" id="resultSub"></div>
+        </div>
+      </div>
+      <div class="confidence-badge">
+        <div class="conf-label">Confidence</div>
+        <div class="conf-value" id="confValue"></div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="result-body">
+
+      <!-- Meta cards -->
+      <div class="meta-row" id="metaRow">
+        <div class="meta-card">
+          <div class="meta-card-label">Stage 1 Classification</div>
+          <div class="meta-card-value" id="metaStage1"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-card-label">Spam Category</div>
+          <div class="meta-card-value" id="metaCategory"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-card-label">Model Source</div>
+          <div class="meta-card-value" id="metaModel"></div>
+        </div>
+      </div>
+
+      <!-- Folder destination -->
+      <div class="folder-dest" id="folderDest">
+        <div class="folder-icon" id="folderIcon"></div>
+        <div class="folder-text">
+          <div class="folder-name" id="folderName"></div>
+          <div class="folder-reason" id="folderReason"></div>
+        </div>
+      </div>
+
+      <!-- Preference score bars (only shown for SPAM/INBOXIQ) -->
+      <div id="prefScoresSection" style="display:none">
+        <div class="pref-score-label">Preference Similarity Scores</div>
+        <div class="pref-scores" id="prefScoresList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── THREE FOLDER CARDS ─────────────────────────────────────────────── -->
+  <div class="folders-row">
+
+    <div class="folder-card inbox-card" id="cardInbox">
+      <span class="folder-card-icon">📥</span>
+      <div class="folder-card-name">INBOX</div>
+      <div class="folder-card-desc">Legitimate emails delivered normally.</div>
+      <div class="folder-mail-preview" id="previewInbox">
+        <div class="mail-preview-from" id="previewInboxFrom"></div>
+        <div class="mail-preview-subject" id="previewInboxSubject"></div>
+        <div class="mail-preview-snip" id="previewInboxSnip"></div>
+      </div>
+    </div>
+
+    <div class="folder-card iq-card" id="cardIQ">
+      <span class="folder-card-icon">✨</span>
+      <div class="folder-card-name">INBOXIQ</div>
+      <div class="folder-card-desc">Rescued spam — matches your interests.</div>
+      <div class="folder-mail-preview" id="previewIQ">
+        <div class="mail-preview-from" id="previewIQFrom"></div>
+        <div class="mail-preview-subject" id="previewIQSubject"></div>
+        <div class="mail-preview-snip" id="previewIQSnip"></div>
+      </div>
+    </div>
+
+    <div class="folder-card spam-card" id="cardSpam">
+      <span class="folder-card-icon">🗑️</span>
+      <div class="folder-card-name">SPAM</div>
+      <div class="folder-card-desc">Irrelevant or malicious emails blocked.</div>
+      <div class="folder-mail-preview" id="previewSpam">
+        <div class="mail-preview-from" id="previewSpamFrom"></div>
+        <div class="mail-preview-subject" id="previewSpamSubject"></div>
+        <div class="mail-preview-snip" id="previewSpamSnip"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-logo">Inbox<span>IQ</span></div>
+    <p>Two-stage ML pipeline · TF-IDF · Cosine Similarity · Flask</p>
+    <p>Mini Project — Machine Learning</p>
+  </footer>
+
+</div><!-- /app -->
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   InboxIQ Frontend Script
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const API = window.location.origin || 'http://127.0.0.1:5000';
+
+/* ── Gmail Integration ───────────────────────────────────────────────────── */
+async function savePreferences() {
+  try {
+    await fetch(`${API}/preferences`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({user_interests: [...selectedPrefs]})
+    });
+  } catch (_) {}
+}
+
+async function loadPreferences() {
+  try {
+    const res = await fetch(`${API}/preferences`);
+    if (!res.ok) return;
+    const data = await res.json();
+    selectedPrefs = new Set(data.user_interests || []);
+    document.querySelectorAll('.pref-tag').forEach(el => {
+      el.classList.toggle('active', selectedPrefs.has(el.dataset.name));
+    });
+    updatePrefCount();
+  } catch (_) {}
+}
+
+async function checkGmailStatus() {
+  const status = document.getElementById('gmailStatus');
+  const connect = document.getElementById('gmailConnectBtn');
+  const process = document.getElementById('gmailProcessBtn');
+
+  try {
+    const res = await fetch(`${API}/gmail/status`);
+    const data = await res.json();
+
+    if (data.connected) {
+      status.textContent = `✓ Connected: ${data.email || 'Gmail'} · Automatic processing ON`;
+      status.style.color = '#2ecc71';
+      connect.textContent = 'GMAIL CONNECTED';
+      connect.disabled = true;
+      process.style.display = 'inline-block';
+    } else if (data.oauth_running) {
+      status.textContent = 'Google authorization in progress…';
+      status.style.color = '#c39bd3';
+      connect.disabled = true;
+    } else if (data.error) {
+      status.textContent = `Gmail setup: ${data.error}`;
+      status.style.color = '#e67e22';
+      connect.disabled = false;
+    } else {
+      status.textContent = 'Gmail not connected';
+      status.style.color = '';
+      connect.disabled = false;
+    }
+  } catch (_) {
+    status.textContent = 'Backend offline';
+    status.style.color = '#e74c3c';
+  }
+}
+
+async function connectGmail() {
+  const status = document.getElementById('gmailStatus');
+  const connect = document.getElementById('gmailConnectBtn');
+
+  await savePreferences();
+  connect.disabled = true;
+  status.textContent = 'Starting Google authorization…';
+
+  try {
+    const res = await fetch(`${API}/gmail/connect`, {method:'POST'});
+    const data = await res.json();
+
+    if (!res.ok) {
+      status.textContent = data.message || 'Gmail setup is incomplete.';
+      status.style.color = '#e67e22';
+      connect.disabled = false;
+      return;
+    }
+
+    status.textContent = data.message || 'Authorize Gmail in the browser.';
+    setTimeout(checkGmailStatus, 2500);
+  } catch (e) {
+    status.textContent = 'Could not contact InboxIQ backend.';
+    status.style.color = '#e74c3c';
+    connect.disabled = false;
+  }
+}
+
+async function processGmailNow() {
+  const status = document.getElementById('gmailStatus');
+  status.textContent = 'Processing unread Gmail messages…';
+
+  try {
+    await savePreferences();
+    const res = await fetch(`${API}/gmail/process-now`, {method:'POST'});
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      status.textContent = `✓ Processed ${data.processed_count} message(s). Automatic processing remains ON.`;
+      status.style.color = '#2ecc71';
+    } else {
+      status.textContent = data.message || 'Processing failed.';
+      status.style.color = '#e74c3c';
+    }
+  } catch (_) {
+    status.textContent = 'Could not process Gmail.';
+    status.style.color = '#e74c3c';
+  }
+}
+
+/* Persist every preference change for the Gmail worker. */
+const inboxIQOriginalTogglePref = togglePref;
+togglePref = function(el, name) {
+  inboxIQOriginalTogglePref(el, name);
+  savePreferences();
+};
+
+
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+let selectedPrefs   = new Set();
+let lastResult      = null;
+let emailSnippets   = { from: '', subject: '', snip: '' };
+
+/* ── All categories (fetched from backend, fallback inline) ─────────────── */
+const FALLBACK_CATEGORIES = [
+  { name: 'Fashion & Clothing',        icon: '👗' },
+  { name: 'Electronics & Gadgets',     icon: '💻' },
+  { name: 'Food & Dining',             icon: '🍕' },
+  { name: 'Health & Fitness',          icon: '💪' },
+  { name: 'Travel & Hotels',           icon: '✈️' },
+  { name: 'Festival & Seasonal Sales', icon: '🎉' },
+  { name: 'Finance & Banking',         icon: '💳' },
+  { name: 'Shopping & Deals',          icon: '🛍️' },
+  { name: 'Beauty & Skincare',         icon: '💄' },
+];
+
+/* ── On Load ─────────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  initPreferences(FALLBACK_CATEGORIES);
+  checkHealth();
+  document.getElementById('emailInput').addEventListener('input', handleInput);
+  loadPreferences();
+  checkGmailStatus();
+  setInterval(checkGmailStatus, 10000);
+});
+
+/* ── Health Check ────────────────────────────────────────────────────────── */
+async function checkHealth() {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const res = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const d = await res.json();
+      dot.style.background   = '#2ecc71';
+      text.textContent = d.model_loaded
+        ? `Backend online · Trained ML model loaded`
+        : `Backend online · Heuristic mode (run notebook to generate inboxiq_model.pkl)`;
+      // Also fetch real categories
+      fetchCategories();
+    } else {
+      throw new Error('non-200');
+    }
+  } catch {
+    dot.style.background   = '#e74c3c';
+    dot.style.animation    = 'none';
+    text.textContent = 'Backend offline — start app.py (python app.py)';
+  }
+}
+
+async function fetchCategories() {
+  try {
+    const res  = await fetch(`${API}/categories`);
+    const data = await res.json();
+    if (data.categories?.length) {
+      initPreferences(data.categories);
+    }
+  } catch { /* keep fallback */ }
+}
+
+/* ── Preference Tags ─────────────────────────────────────────────────────── */
+function initPreferences(cats) {
+  const grid = document.getElementById('prefGrid');
+  grid.innerHTML = '';
+  cats.forEach(cat => {
+    const tag = document.createElement('div');
+    tag.className = 'pref-tag' + (selectedPrefs.has(cat.name) ? ' active' : '');
+    tag.dataset.name = cat.name;
+    tag.innerHTML = `<span class="tag-icon">${cat.icon}</span>${cat.name}`;
+    tag.addEventListener('click', () => togglePref(tag, cat.name));
+    grid.appendChild(tag);
+  });
+  updatePrefCount();
+}
+
+function togglePref(el, name) {
+  if (selectedPrefs.has(name)) {
+    selectedPrefs.delete(name);
+    el.classList.remove('active');
+  } else {
+    selectedPrefs.add(name);
+    el.classList.add('active');
+  }
+  updatePrefCount();
+}
+
+function updatePrefCount() {
+  const n = selectedPrefs.size;
+  const el = document.getElementById('selectedCount');
+  el.textContent = n === 0
+    ? '0 selected'
+    : `${n} selected — InboxIQ will rescue matching spam`;
+  el.style.color = n > 0 ? '#c39bd3' : '';
+}
+
+/* ── Input Handler ───────────────────────────────────────────────────────── */
+function handleInput(e) {
+  const len = e.target.value.length;
+  const cc  = document.getElementById('charCount');
+  cc.textContent = `${len.toLocaleString()} chars`;
+  cc.classList.toggle('warn', len > 8000);
+  extractSnippets(e.target.value);
+}
+
+function extractSnippets(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  emailSnippets.from    = '';
+  emailSnippets.subject = '';
+  emailSnippets.snip    = '';
+
+  for (const line of lines) {
+    if (!emailSnippets.from    && /^from:/i.test(line))    emailSnippets.from    = line.replace(/^from:\s*/i, '');
+    if (!emailSnippets.subject && /^subject:/i.test(line)) emailSnippets.subject = line.replace(/^subject:\s*/i, '');
+  }
+  // snip: first non-header line with meaningful content
+  for (const line of lines) {
+    if (!/^(from|to|subject|date|cc|bcc):/i.test(line) && line.length > 20) {
+      emailSnippets.snip = line.substring(0, 80) + (line.length > 80 ? '…' : '');
+      break;
+    }
+  }
+  if (!emailSnippets.subject && lines[0]) emailSnippets.subject = lines[0].substring(0, 60);
+}
+
+/* ── Classify ────────────────────────────────────────────────────────────── */
+async function classifyEmail() {
+  const emailText = document.getElementById('emailInput').value.trim();
+  const btn       = document.getElementById('classifyBtn');
+  const errEl     = document.getElementById('errorMsg');
+
+  errEl.style.display = 'none';
+
+  if (!emailText) {
+    showError('Please paste an email first.');
+    shakeTextarea();
+    return;
+  }
+
+  // Loading state
+  btn.disabled = true;
+  btn.classList.add('loading');
+  document.getElementById('btnText').textContent = 'Classifying…';
+
+  try {
+    const res = await fetch(`${API}/classify`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        email_text:     emailText,
+        user_interests: [...selectedPrefs],
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Server error ${res.status}`);
+    }
+
+    const data = await res.json();
+    lastResult = data;
+    renderResult(data, emailText);
+
+  } catch (err) {
+    if (err.name === 'TimeoutError') {
+      showError('Request timed out — is the backend running? (python app.py)');
+    } else if (err.message.includes('fetch')) {
+      showError('Cannot reach backend. Run: python app.py  then refresh.');
+    } else {
+      showError(`Error: ${err.message}`);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    document.getElementById('btnText').textContent = 'CLASSIFY EMAIL';
+  }
+}
+
+/* ── Render Result ───────────────────────────────────────────────────────── */
+function renderResult(data, rawEmail) {
+  const panel = document.getElementById('resultPanel');
+  panel.dataset.result = data.final_class;
+
+  // Icon + verdict
+  const icons   = { HAM:'📥', SPAM:'🗑️', INBOXIQ:'✨' };
+  const verdicts= { HAM:'INBOX', SPAM:'SPAM', INBOXIQ:'INBOXIQ' };
+  const subs    = { HAM:'Legitimate email', SPAM:'Blocked as spam', INBOXIQ:'Rescued to InboxIQ' };
+
+  document.getElementById('resultIcon').textContent    = icons[data.final_class];
+  document.getElementById('resultVerdict').textContent = verdicts[data.final_class];
+  document.getElementById('resultSub').textContent     = subs[data.final_class];
+  document.getElementById('confValue').textContent     = `${data.confidence_pct}%`;
+
+  // Meta cards
+  document.getElementById('metaStage1').textContent   = data.stage1_class;
+  document.getElementById('metaCategory').textContent = data.spam_category || '—';
+  document.getElementById('metaModel').textContent    = data.model_source === 'trained'
+    ? '🧠 Trained ML' : '⚙️ Heuristic';
+
+  // Folder destination
+  const folderIcons = { Inbox:'📥', Spam:'🗑️', InboxIQ:'✨' };
+  document.getElementById('folderIcon').textContent   = folderIcons[data.folder] || '📂';
+  document.getElementById('folderName').textContent   = data.folder.toUpperCase();
+  document.getElementById('folderReason').textContent = data.reason;
+
+  // Preference scores
+  const scores = data.preference_scores || {};
+  const matched = new Set(data.matched_interests || []);
+  const scoreKeys = Object.keys(scores);
+
+  if (scoreKeys.length > 0 && data.stage1_class === 'SPAM') {
+    document.getElementById('prefScoresSection').style.display = 'block';
+    const list = document.getElementById('prefScoresList');
+    list.innerHTML = '';
+
+    // Sort by score desc, then render
+    scoreKeys.sort((a, b) => (scores[b] || 0) - (scores[a] || 0)).forEach(cat => {
+      const score   = scores[cat] || 0;
+      const pct     = Math.min(100, score * 700);  // scale for visual
+      const isMatch = matched.has(cat);
+      const row     = document.createElement('div');
+      row.className = 'score-row';
+      row.innerHTML = `
+        <span class="score-name">${cat}</span>
+        <div class="score-bar-track">
+          <div class="score-bar-fill ${isMatch ? 'rescued-fill' : ''}"
+               style="width:${pct}%" id="bar_${cat.replace(/\s+/g,'_')}"></div>
+        </div>
+        <span class="score-val">${score.toFixed(3)}</span>
+        ${isMatch ? '<span class="rescued-tag">rescued</span>' : ''}
+      `;
+      list.appendChild(row);
+    });
+    // Animate bars after render
+    setTimeout(() => {
+      scoreKeys.forEach(cat => {
+        const bar = document.getElementById(`bar_${cat.replace(/\s+/g,'_')}`);
+        if (bar) {
+          const pct = Math.min(100, (scores[cat] || 0) * 700);
+          bar.style.width = `${pct}%`;
+        }
+      });
+    }, 80);
+  } else {
+    document.getElementById('prefScoresSection').style.display = 'none';
+  }
+
+  // Show panel
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Update folder cards
+  updateFolderCards(data, rawEmail);
+}
+
+/* ── Folder Cards Update ─────────────────────────────────────────────────── */
+function updateFolderCards(data, rawEmail) {
+  // Remove all active states
+  ['cardInbox','cardIQ','cardSpam'].forEach(id => {
+    document.getElementById(id).classList.remove('active-folder');
+  });
+
+  const cardMap = { HAM:'cardInbox', INBOXIQ:'cardIQ', SPAM:'cardSpam' };
+  const previewMap = {
+    HAM:     { from:'previewInboxFrom', sub:'previewInboxSubject', snip:'previewInboxSnip' },
+    INBOXIQ: { from:'previewIQFrom',    sub:'previewIQSubject',    snip:'previewIQSnip'    },
+    SPAM:    { from:'previewSpamFrom',  sub:'previewSpamSubject',  snip:'previewSpamSnip'  },
+  };
+
+  const activeCard = document.getElementById(cardMap[data.final_class]);
+  if (activeCard) activeCard.classList.add('active-folder');
+
+  const ids  = previewMap[data.final_class];
+  if (ids) {
+    document.getElementById(ids.from).textContent = emailSnippets.from  || 'Unknown Sender';
+    document.getElementById(ids.sub ).textContent = emailSnippets.subject || rawEmail.substring(0,60)+'…';
+    document.getElementById(ids.snip).textContent = emailSnippets.snip  || 'No preview available';
+  }
+}
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent  = msg;
+  el.style.display = 'block';
+}
+
+function shakeTextarea() {
+  const el = document.querySelector('.email-wrap');
+  el.style.animation = 'none';
+  el.style.transform = 'translateX(0)';
+  let t = 0;
+  const shake = setInterval(() => {
+    el.style.transform = `translateX(${Math.sin(t++ * 0.8) * 5}px)`;
+    if (t > 20) { clearInterval(shake); el.style.transform = ''; }
+  }, 30);
+}
+
+/* ── Also allow Enter to submit with Ctrl/Cmd ────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') classifyEmail();
+});
+</script>
+
+</body>
+</html>
